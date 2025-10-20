@@ -1,24 +1,20 @@
 name: 'Image Analysis Workflow'
 
 on:
-  workflow_dispatch: # Allows manual triggering
+  workflow_dispatch:
   push:
     branches:
       - main
 
 jobs:
   image-analysis-job:
-    # Use a standard GitHub-hosted runner
     runs-on: ubuntu-latest
-    
-    # Add permissions for OIDC authentication
     permissions:
       contents: 'read'
       id-token: 'write'
 
     steps:
-      # Step 1: Authenticate to Google Cloud (using WIF)
-      # This replaces the assumed VM auth from Jenkins
+      # Step 1: Authenticate to Google Cloud
       - name: 'Authenticate to Google Cloud'
         id: 'auth'
         uses: 'google-github-actions/auth@v2'
@@ -27,13 +23,18 @@ jobs:
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       # Step 2: Set up gcloud SDK
-      # This action will automatically use the credentials from Step 1
-      # and run 'gcloud auth configure-docker' for you.
       - name: 'Set up gcloud SDK'
         uses: 'google-github-actions/setup-gcloud@v2'
 
-      # Step 3: Run the Scanner Docker Image
-      # This is the converted 'sh' step from your Jenkinsfile
+      # Step 3: NEW - Configure Docker for Artifact Registry
+      # This is the step that was missing. It uses the gcloud
+      # authentication from the steps above to log in the Docker client.
+      - name: 'Configure Docker for Artifact Registry'
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      # Step 4: Run the Scanner Docker Image
+      # Now this step will be authenticated to pull the image.
       - name: 'Run Image Analysis Scan'
         run: |
           echo "📦 Running container from scanner image..."
