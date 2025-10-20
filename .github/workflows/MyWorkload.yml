@@ -14,33 +14,41 @@ jobs:
       id-token: 'write'
 
     steps:
-      # Step 1: Authenticate to Google Cloud
+      # Step 1: Authenticate and CREATE A CREDENTIAL FILE
       - name: 'Authenticate to Google Cloud'
-        id: 'auth'
+        id: 'auth' # We give this step an ID to reference its output
         uses: 'google-github-actions/auth@v2'
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          
+          # === FIX 1: This new line is ESSENTIAL ===
+          create_credentials_file: true
 
       # Step 2: Set up gcloud SDK
       - name: 'Set up gcloud SDK'
         uses: 'google-github-actions/setup-gcloud@v2'
 
-      # Step 3: NEW - Configure Docker for Artifact Registry
-      # This is the step that was missing. It uses the gcloud
-      # authentication from the steps above to log in the Docker client.
+      # Step 3: Configure Docker for Artifact Registry (to pull the image)
       - name: 'Configure Docker for Artifact Registry'
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
       # Step 4: Run the Scanner Docker Image
-      # Now this step will be authenticated to pull the image.
       - name: 'Run Image Analysis Scan'
         run: |
           echo "📦 Running container from scanner image..."
           
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
+            
+            # === FIX 2: Mount the credential file into the container ===
+            -v ${{ steps.auth.outputs.credentials_file_path }}:/gcp-key.json \
+            
+            # === FIX 3: Tell gcloud (inside container) where the key is ===
+            -e GOOGLE_APPLICATION_CREDENTIALS=/gcp-key.json \
+            
+            # Your original environment variables
             -e GCP_PROJECT_ID="cispoc" \
             -e ORGANIZATION_ID="714470867684" \
             -e IMAGE_NAME="alpine" \
