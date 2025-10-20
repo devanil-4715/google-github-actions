@@ -1,27 +1,23 @@
 name: 'GCP Auth Test'
 
 on:
-  workflow_dispatch: # Allows manual triggering
+  workflow_dispatch:
   push:
     branches:
-      - main # Or whatever your default branch is
+      - main
 
 jobs:
   authenticate-and-test:
     runs-on: ubuntu-latest
-    
-    # These permissions are ESSENTIAL for OIDC
     permissions:
       contents: 'read'
       id-token: 'write'
 
     steps:
-    # Step 1: Standard checkout
     - name: 'Checkout code'
       uses: 'actions/checkout@v4'
 
-    # Step 2: Authenticate to Google Cloud
-    # This action logs in and creates a credential file.
+    # Step 1: Authenticate to Google Cloud
     - name: 'Authenticate to Google Cloud'
       id: 'auth'
       uses: 'google-github-actions/auth@v2'
@@ -29,16 +25,19 @@ jobs:
         workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
         service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-    # Step 3: Set up gcloud SDK
-    # This action installs gcloud AND configures it to use
-    # the credential file created in the step above.
+    # Step 2: Set up gcloud SDK
     - name: 'Set up gcloud SDK'
       uses: 'google-github-actions/setup-gcloud@v2'
+      with:
+        # Explicitly set the project for gcloud
+        project_id: 'liangyutan-testproject'
 
-    # Step 4: Run your gcloud command
-    # Now that gcloud is authenticated, this command will work
-    # and show your service account as the active user.
-    - name: 'Run gcloud command (test)'
+    # Step 3: Run gcloud commands
+    - name: 'Run gcloud commands to verify'
       run: |
-        echo "Running gcloud auth list..."
+        echo "--- Running gcloud auth list ---"
         gcloud auth list
+        
+        echo "--- Running gcloud compute instances list ---"
+        # This is the real test.
+        gcloud compute instances list
