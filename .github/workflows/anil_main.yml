@@ -1,0 +1,39 @@
+name: 'GCP Auth Test'
+
+on:
+  workflow_dispatch: # This adds the "Run workflow" button
+
+jobs:
+  authenticate-and-test:
+    runs-on: ubuntu-latest
+    
+    # These permissions are ESSENTIAL for OIDC
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+    - name: 'Checkout code'
+      uses: 'actions/checkout@v4'
+
+    - name: 'Authenticate to Google Cloud'
+      id: 'auth'
+      uses: 'google-github-actions/auth@v2'
+      with:
+        # Use the secrets you just created
+        workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+        service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+    - name: 'Set up gcloud SDK'
+      uses: 'google-github-actions/setup-gcloud@v2'
+
+    - name: 'Run gcloud command (test)'
+      run: |
+        echo "---------------------------------------"
+        echo "Successfully authenticated as:"
+        gcloud auth list
+        
+        echo "---------------------------------------"
+        echo "Listing enabled services in project:"
+        gcloud services list --enabled --limit=5
+        echo "---------------------------------------"
