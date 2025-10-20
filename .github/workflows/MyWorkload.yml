@@ -44,7 +44,7 @@ jobs:
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v ${{ steps.auth.outputs.credentials_file_path }}:/gcp-creds.json \
             -e GOOGLE_APPLICATION_CREDENTIALS=/gcp-creds.json \
-            -e GCP_PROJECT_ID="cispoc" \
+            -e GCP_PROJECT_ID="liangyutan-testproject" \
             -e ORGANIZATION_ID="714470867684" \
             -e IMAGE_NAME="alpine" \
             -e IMAGE_TAG="latest" \
