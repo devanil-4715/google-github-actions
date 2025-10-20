@@ -22,7 +22,7 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
           
-          # === FIX 1: This new line is ESSENTIAL ===
+          # This is still required to create the file
           create_credentials_file: true
 
       # Step 2: Set up gcloud SDK
@@ -34,7 +34,7 @@ jobs:
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
-# Step 4: Run the Scanner Docker Image
+      # Step 4: Run the Scanner Docker Image
       - name: 'Run Image Analysis Scan'
         run: |
           echo "📦 Running container from scanner image..."
@@ -42,8 +42,14 @@ jobs:
           # This command must be an unbroken block of lines
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
+            
+            # --- THIS IS THE FIX ---
+            # 1. Mount the key file to a path inside the container (e.g., /gcp-key.json)
             -v ${{ steps.auth.outputs.credentials_file_path }}:/gcp-key.json \
-            -e GOOGLE_APPLICATION_CREDENTIALS=/gcp-key.json \
+            # 2. Set the GCLOUD_KEY_PATH variable that your script is looking for
+            -e GCLOUD_KEY_PATH=/gcp-key.json \
+            
+            # Your original environment variables
             -e GCP_PROJECT_ID="cispoc" \
             -e ORGANIZATION_ID="714470867684" \
             -e IMAGE_NAME="alpine" \
