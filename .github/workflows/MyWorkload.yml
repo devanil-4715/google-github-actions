@@ -1,4 +1,4 @@
-name: 'Image Analysis Workflow'
+name: 'Image Analysis Workflow - Latest'
 
 on:
   workflow_dispatch:
