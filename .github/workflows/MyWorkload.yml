@@ -51,4 +51,6 @@ jobs:
             -e CONNECTOR_ID="organizations/714470867684/locations/global/connectors/privatepreviewdemo" \
             -e BUILD_TAG="${{ github.workflow }}" \
             -e BUILD_ID="${{ github.run_number }}" \
+            -e API_ENDPOINT="artifactguard.googleapis.com" \
+            -e IMAGE_DIGEST="SHA:12345" \
             gcr.io/ci-plugin/updated-ci-scanning-multistage-build:latest
