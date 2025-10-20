@@ -6,8 +6,6 @@ on:
 jobs:
   authenticate-and-test:
     runs-on: ubuntu-latest
-    
-    # These permissions are ESSENTIAL for OIDC
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -16,24 +14,23 @@ jobs:
     - name: 'Checkout code'
       uses: 'actions/checkout@v4'
 
+    # 1. AUTHENTICATE FIRST
+    # This step logs you in and creates the credential file.
     - name: 'Authenticate to Google Cloud'
       id: 'auth'
       uses: 'google-github-actions/auth@v2'
       with:
-        # Use the secrets you just created
         workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
         service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
+    # 2. SET UP GCLOUD SECOND
+    # This step configures the gcloud tool to use the credentials
+    # created by the 'auth' step above.
     - name: 'Set up gcloud SDK'
       uses: 'google-github-actions/setup-gcloud@v2'
 
+    # 3. NOW YOU CAN RUN COMMANDS
+    # This will now correctly show the authenticated account.
     - name: 'Run gcloud command (test)'
       run: |
-        echo "---------------------------------------"
-        echo "Successfully authenticated as:"
         gcloud auth list
-        
-        echo "---------------------------------------"
-        echo "Listing enabled services in project:"
-        gcloud services list --enabled --limit=5
-        echo "---------------------------------------"
