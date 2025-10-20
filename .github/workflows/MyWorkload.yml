@@ -45,7 +45,7 @@ jobs:
             -v ${{ steps.auth.outputs.credentials_file_path }}:/gcp-creds.json \
             -e GOOGLE_APPLICATION_CREDENTIALS=/gcp-creds.json \
             -e GCP_PROJECT_ID="liangyutan-testproject" \
-            -e ORGANIZATION_ID="714470867684" \
+            -e ORGANIZATION_ID="978806944881" \
             -e IMAGE_NAME="alpine" \
             -e IMAGE_TAG="latest" \
             -e CONNECTOR_ID="organizations/714470867684/locations/global/connectors/privatepreviewdemo" \
