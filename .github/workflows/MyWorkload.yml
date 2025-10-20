@@ -1,43 +1,50 @@
-name: 'GCP Auth Test'
+name: 'Image Analysis Workflow'
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Allows manual triggering
   push:
     branches:
       - main
 
 jobs:
-  authenticate-and-test:
+  image-analysis-job:
+    # Use a standard GitHub-hosted runner
     runs-on: ubuntu-latest
+    
+    # Add permissions for OIDC authentication
     permissions:
       contents: 'read'
       id-token: 'write'
 
     steps:
-    - name: 'Checkout code'
-      uses: 'actions/checkout@v4'
+      # Step 1: Authenticate to Google Cloud (using WIF)
+      # This replaces the assumed VM auth from Jenkins
+      - name: 'Authenticate to Google Cloud'
+        id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-    # Step 1: Authenticate to Google Cloud
-    - name: 'Authenticate to Google Cloud'
-      id: 'auth'
-      uses: 'google-github-actions/auth@v2'
-      with:
-        workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-        service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      # Step 2: Set up gcloud SDK
+      # This action will automatically use the credentials from Step 1
+      # and run 'gcloud auth configure-docker' for you.
+      - name: 'Set up gcloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
 
-    # Step 2: Set up gcloud SDK
-    - name: 'Set up gcloud SDK'
-      uses: 'google-github-actions/setup-gcloud@v2'
-      with:
-        # Explicitly set the project for gcloud
-        project_id: 'liangyutan-testproject'
-
-    # Step 3: Run gcloud commands
-    - name: 'Run gcloud commands to verify'
-      run: |
-        echo "--- Running gcloud auth list ---"
-        gcloud auth list
-        
-        echo "--- Running gcloud compute instances list ---"
-        # This is the real test.
-        gcloud compute instances list
+      # Step 3: Run the Scanner Docker Image
+      # This is the converted 'sh' step from your Jenkinsfile
+      - name: 'Run Image Analysis Scan'
+        run: |
+          echo "📦 Running container from scanner image..."
+          
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -e GCP_PROJECT_ID="cispoc" \
+            -e ORGANIZATION_ID="714470867684" \
+            -e IMAGE_NAME="alpine" \
+            -e IMAGE_TAG="latest" \
+            -e CONNECTOR_ID="organizations/714470867684/locations/global/connectors/privatepreviewdemo" \
+            -e BUILD_TAG="${{ github.workflow }}" \
+            -e BUILD_ID="${{ github.run_number }}" \
+            us-central1-docker.pkg.dev/ci-plugin/ci-images/scc-artifactguard-scan-image:latest
