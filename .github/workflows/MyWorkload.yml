@@ -34,21 +34,16 @@ jobs:
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
-      # Step 4: Run the Scanner Docker Image
+# Step 4: Run the Scanner Docker Image
       - name: 'Run Image Analysis Scan'
         run: |
           echo "📦 Running container from scanner image..."
           
+          # This command must be an unbroken block of lines
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            
-            # === FIX 2: Mount the credential file into the container ===
             -v ${{ steps.auth.outputs.credentials_file_path }}:/gcp-key.json \
-            
-            # === FIX 3: Tell gcloud (inside container) where the key is ===
             -e GOOGLE_APPLICATION_CREDENTIALS=/gcp-key.json \
-            
-            # Your original environment variables
             -e GCP_PROJECT_ID="cispoc" \
             -e ORGANIZATION_ID="714470867684" \
             -e IMAGE_NAME="alpine" \
