@@ -34,14 +34,13 @@ jobs:
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
-      # Step 4: Run the Scanner Docker Image
+# Step 4: Run the Scanner Docker Image
       - name: 'Run Image Analysis Scan'
         run: |
           echo "📦 Running container from scanner image..."
           
-          # This command must be an unbroken block of lines
           docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v /var-run/docker.sock:/var-run/docker.sock \
             -v ${{ steps.auth.outputs.credentials_file_path }}:/gcp-creds.json \
             -e GOOGLE_APPLICATION_CREDENTIALS=/gcp-creds.json \
             -e GCP_PROJECT_ID="cispoc" \
@@ -51,4 +50,4 @@ jobs:
             -e CONNECTOR_ID="organizations/714470867684/locations/global/connectors/privatepreviewdemo" \
             -e BUILD_TAG="${{ github.workflow }}" \
             -e BUILD_ID="${{ github.run_number }}" \
-            us-central1-docker.pkg.dev/ci-plugin/ci-images/scc-artifactguard-scan-image:latest
+            gcr.io/ci-plugin/updated-ci-scanning-multistage-build:latest
