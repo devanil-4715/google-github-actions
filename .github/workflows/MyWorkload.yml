@@ -45,10 +45,10 @@ jobs:
             -v ${{ steps.auth.outputs.credentials_file_path }}:/gcp-creds.json \
             -e GOOGLE_APPLICATION_CREDENTIALS=/gcp-creds.json \
             -e GCP_PROJECT_ID="liangyutan-testproject" \
-            -e ORGANIZATION_ID="978806944881" \
+            -e ORGANIZATION_ID="986981441905" \
             -e IMAGE_NAME="alpine" \
             -e IMAGE_TAG="latest" \
-            -e CONNECTOR_ID="organizations/714470867684/locations/global/connectors/privatepreviewdemo" \
+            -e CONNECTOR_ID="organizations/986981441905/locations/global/connectors/privatepreviewdemo" \
             -e BUILD_TAG="${{ github.workflow }}" \
             -e BUILD_ID="${{ github.run_number }}" \
             gcr.io/ci-plugin/updated-ci-scanning-multistage-build:latest
