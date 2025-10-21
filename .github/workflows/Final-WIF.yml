@@ -1,0 +1,132 @@
+name: 'Image Analysis Workflow'
+
+on:
+  push:
+    branches:
+      - main
+  # --- Define inputs for manual runs ---
+  workflow_dispatch:
+    inputs:
+      IMAGE_NAME_TO_SCAN:
+        description: 'The full name of the Docker image to scan (e.g., python:3.9-slim)'
+        required: true
+        default: 'alpine'
+      GCP_PROJECT_ID:
+        description: 'GCP Project ID for authentication and configuration'
+        required: true
+        default: 'cispoc' # Changed from liangyutan-testproject based on your Jenkins example
+      ORGANIZATION_ID:
+        description: 'Your GCP Organization ID'
+        required: true
+        default: '714470867684' # Changed based on your Jenkins example
+      CONNECTOR_ID:
+        description: 'The ID for your pipeline connector'
+        required: true
+        default: 'organizations/714470867684/locations/global/connectors/privatepreviewdemo'
+      SCANNER_IMAGE:
+        description: 'The Docker image that contains your scanner script'
+        required: true
+        # Changed the default scanner image based on your Jenkins example
+        default: 'us-central1-docker.pkg.dev/ci-plugin/ci-images/scc-artifactguard-scan-image:latest' 
+      IMAGE_TAG:
+        description: 'The Docker image version'
+        required: true
+        default: 'latest'
+      IGNORE_SERVER_ERRORS:
+        description: 'If true, the pipeline continues on server/internal scanner errors.'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  image-analysis-job:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    # --- Define default environment variables for non-manual runs (like push) ---
+    env:
+      IMAGE_NAME_TO_SCAN: 'alpine'
+      GCP_PROJECT_ID: 'cispoc' 
+      ORGANIZATION_ID: '714470867684'
+      CONNECTOR_ID: 'organizations/714470867684/locations/global/connectors/privatepreviewdemo'
+      SCANNER_IMAGE: 'us-central1-docker.pkg.dev/ci-plugin/ci-images/scc-artifactguard-scan-image:latest'
+      IMAGE_TAG: 'latest'
+      IGNORE_SERVER_ERRORS: 'false' # Env vars are strings, we handle boolean logic in the script
+
+    steps:
+      # Step 1: Authenticate and create credential file
+      - name: 'Authenticate to Google Cloud'
+        id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+
+      # Step 2: Set up gcloud SDK
+      - name: 'Set up gcloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      # Step 3: Configure Docker for registries
+      - name: 'Configure Docker for Artifact Registry'
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          gcloud auth configure-docker gcr.io --quiet
+      
+      # Step 4: Fix Docker Socket Permissions
+      - name: 'Fix Docker Socket Permissions'
+        run: |
+          sudo chmod 666 /var/run/docker.sock
+
+      # Step 5: Run Image Analysis Scan and Handle Exit Codes
+      - name: 'Run Image Analysis Scan'
+        run: |
+          echo "📦 Running container from scanner image..."
+          
+          # Determine values: Use manual inputs if available (event_name=workflow_dispatch), otherwise use env defaults
+          SCANNER_IMAGE="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SCANNER_IMAGE || env.SCANNER_IMAGE }}"
+          GCP_PROJECT_ID="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.GCP_PROJECT_ID || env.GCP_PROJECT_ID }}"
+          ORGANIZATION_ID="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ORGANIZATION_ID || env.ORGANIZATION_ID }}"
+          IMAGE_NAME="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.IMAGE_NAME_TO_SCAN || env.IMAGE_NAME_TO_SCAN }}"
+          IMAGE_TAG="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.IMAGE_TAG || env.IMAGE_TAG }}"
+          CONNECTOR_ID="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.CONNECTOR_ID || env.CONNECTOR_ID }}"
+          # For boolean, check the input directly if manual, otherwise use env (string comparison)
+          IGNORE_ERRORS="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.IGNORE_SERVER_ERRORS || (env.IGNORE_SERVER_ERRORS == 'true') }}"
+          
+          # Variable to store exit code
+          exit_code=0
+          
+          # Run docker and capture exit code using || trick
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v ${{ steps.auth.outputs.credentials_file_path }}:/gcp-creds.json \
+            -e GOOGLE_APPLICATION_CREDENTIALS=/gcp-creds.json \
+            -e GCP_PROJECT_ID="${GCP_PROJECT_ID}" \
+            -e ORGANIZATION_ID="${ORGANIZATION_ID}" \
+            -e IMAGE_NAME="${IMAGE_NAME}" \
+            -e IMAGE_TAG="${IMAGE_TAG}" \
+            -e CONNECTOR_ID="${CONNECTOR_ID}" \
+            -e BUILD_TAG="${{ github.workflow }}" \
+            -e BUILD_ID="${{ github.run_number }}" \
+            "${SCANNER_IMAGE}" \
+            || exit_code=$?
+            
+          echo "Docker run finished with exit code: $exit_code"
+          
+          # --- Replicate Jenkins Exit Code Logic ---
+          if [ $exit_code -eq 0 ]; then
+            echo "✅ Evaluation succeeded: Conformant image."
+          elif [ $exit_code -eq 1 ]; then
+            echo "❌ Scan failed: Non-conformant image (vulnerabilities found)."
+            exit 1 # Fail the step
+          else
+            if [ "$IGNORE_ERRORS" = "true" ]; then
+              echo "⚠️ Server/internal error occurred (Code: $exit_code), but IGNORE_SERVER_ERRORS=true. Proceeding."
+              # Do nothing, step passes
+            else
+              echo "❌ Server/internal error occurred (Code: $exit_code) during evaluation. Set IGNORE_SERVER_ERRORS=true to override."
+              exit 1 # Fail the step
+            fi
+          fi
