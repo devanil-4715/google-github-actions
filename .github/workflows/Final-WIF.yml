@@ -51,7 +51,7 @@ jobs:
       GCP_PROJECT_ID: 'cispoc' 
       ORGANIZATION_ID: '714470867684'
       CONNECTOR_ID: 'organizations/714470867684/locations/global/connectors/privatepreviewdemo'
-      SCANNER_IMAGE: 'us-central1-docker.pkg.dev/ci-plugin/ci-images/scc-artifactguard-scan-image:latest'
+      SCANNER_IMAGE: 'gcr.io/ci-plugin/updated-ci-scanning-multistage-build:latest'
       IMAGE_TAG: 'latest'
       IGNORE_SERVER_ERRORS: 'false' # Env vars are strings, we handle boolean logic in the script
 
